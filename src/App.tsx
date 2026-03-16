@@ -9,7 +9,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { callMcpTool } from './api';
+import { callMcpTool, AuthError } from './api';
 import './App.css';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -158,6 +158,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [usingMock, setUsingMock] = useState(false);
+  const [authError, setAuthError] = useState(false);
 
   const [periodType, setPeriodType] = useState<PeriodType>('year');
   const [selectedPeriod, setSelectedPeriod] = useState<string>('');
@@ -189,6 +190,9 @@ export default function App() {
         setBudgetData(budget as ApiRow[]);
       } catch (err) {
         console.error('API error, using mock data:', err);
+        if (err instanceof AuthError) {
+          setAuthError(true);
+        }
         setError('Could not reach API — showing demo data');
         setUsingMock(true);
         setActualsData(generateMockRows('Actuals'));
@@ -264,7 +268,28 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="app-header">
+      {authError && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 9999,
+            background: 'linear-gradient(90deg, #dc2626, #ea580c)',
+            color: '#fff',
+            padding: '16px 24px',
+            fontSize: '16px',
+            fontWeight: 600,
+            lineHeight: 1.5,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+            textAlign: 'center',
+          }}
+        >
+          ⚠️ Session expired — API credentials need to be refreshed. Please contact your administrator to re-deploy with updated credentials.
+        </div>
+      )}
+      <header className="app-header" style={authError ? { marginTop: '60px' } : undefined}>
         <div className="header-content">
           <div>
             <h1 className="app-title">Budget vs Actuals</h1>
