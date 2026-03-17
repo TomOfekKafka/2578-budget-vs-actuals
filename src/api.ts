@@ -7,13 +7,28 @@ export class AuthError extends Error {
   }
 }
 
+let _sessionId = '';
+let _csrfToken = '';
+
+export function setCredentials(sessionId: string, csrfToken: string) {
+  _sessionId = sessionId;
+  _csrfToken = csrfToken;
+}
+
+export function hasCredentials(): boolean {
+  return _sessionId !== '' && _csrfToken !== '';
+}
+
 export async function callMcpTool(toolName: string, args: Record<string, unknown> = {}): Promise<unknown> {
+  if (!hasCredentials()) {
+    throw new AuthError('No credentials received yet');
+  }
   const response = await fetch(MCP_BASE + '/api/tool', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Session-Id': import.meta.env.VITE_DR_SESSION_ID ?? '',
-      'X-Csrf-Token': import.meta.env.VITE_DR_CSRF_TOKEN ?? '',
+      'X-Session-Id': _sessionId,
+      'X-Csrf-Token': _csrfToken,
       'X-Domain': import.meta.env.VITE_DR_DOMAIN ?? '',
     },
     body: JSON.stringify({ tool: toolName, args }),

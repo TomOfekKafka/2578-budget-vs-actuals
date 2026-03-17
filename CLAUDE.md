@@ -27,32 +27,19 @@ docs/
 
 The app calls the Datarails API via a REST proxy at
 `https://mcp-poc-tom.azurewebsites.net/api/tool`.
-Auth is handled server-side — just send session headers.
+Auth credentials (sessionid, csrftoken) are received at runtime via `window.postMessage`
+from the parent/host page. The domain is still from `VITE_DR_DOMAIN` env var.
 
-### src/api.ts — USE THIS EXACT CODE
+### Auth flow
 
-```typescript
-const MCP_BASE = 'https://mcp-poc-tom.azurewebsites.net';
-
-export async function callMcpTool(toolName: string, args: Record<string, unknown> = {}): Promise<unknown> {
-  const response = await fetch(MCP_BASE + '/api/tool', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Session-Id': import.meta.env.VITE_DR_SESSION_ID ?? '',
-      'X-Csrf-Token': import.meta.env.VITE_DR_CSRF_TOKEN ?? '',
-      'X-Domain': import.meta.env.VITE_DR_DOMAIN ?? '',
-    },
-    body: JSON.stringify({ tool: toolName, args }),
-  });
-  if (!response.ok) throw new Error(await response.text());
-  return await response.json();
-}
-```
+1. The host page sends a `postMessage` with `{ type: 'init', payload: { sessionid, csrftoken, userId, orgId } }`
+2. `App.tsx` listens for this message and calls `setCredentials(sessionid, csrftoken)`
+3. `api.ts` stores the credentials in module-level variables and sends them as `X-Session-Id` / `X-Csrf-Token` headers
+4. Data fetching only starts after credentials are received
 
 **CRITICAL RULES:**
-- **DO NOT** implement a TokenManager or call `/jwt/api/token/` — the SPA
-  is on a different domain and cannot access Datarails cookies.
+- **DO NOT** use env vars for sessionid/csrftoken — they come from postMessage at runtime
+- **DO NOT** implement a TokenManager or call `/jwt/api/token/`
 - **DO NOT** use JSON-RPC format — use the simple `{tool, args}` format.
 - **ALL `table_id` values MUST be strings** — e.g. `String(table.id)` or `"16528"`.
   The API rejects integer table IDs.

@@ -9,7 +9,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { callMcpTool, AuthError } from './api';
+import { callMcpTool, AuthError, setCredentials } from './api';
 import './App.css';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -201,7 +201,20 @@ export default function App() {
         setLoading(false);
       }
     }
-    fetchData();
+
+    function handleMessage(event: MessageEvent) {
+      const { type, payload } = event.data ?? {};
+      if (type === 'init' && payload) {
+        const { sessionid, csrftoken } = payload;
+        if (sessionid && csrftoken) {
+          setCredentials(sessionid, csrftoken);
+          fetchData();
+        }
+      }
+    }
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   const allTimestamps = useMemo(() => {
