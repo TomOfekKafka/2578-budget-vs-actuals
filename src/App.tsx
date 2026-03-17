@@ -215,6 +215,7 @@ export default function App() {
       }
     }
 
+    console.log('[BvA] App mounted, listening for postMessage init event');
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, []);
