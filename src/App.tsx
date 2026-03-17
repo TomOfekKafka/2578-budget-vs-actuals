@@ -203,9 +203,11 @@ export default function App() {
     }
 
     function handleMessage(event: MessageEvent) {
+      console.log('[BvA] postMessage received:', event.data, 'origin:', event.origin);
       const { type, payload } = event.data ?? {};
       if (type === 'init' && payload) {
         const { sessionid, csrftoken } = payload;
+        console.log('[BvA] init payload:', { sessionid: !!sessionid, csrftoken: !!csrftoken });
         if (sessionid && csrftoken) {
           setCredentials(sessionid, csrftoken);
           fetchData();
