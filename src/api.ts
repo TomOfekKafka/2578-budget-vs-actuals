@@ -43,7 +43,7 @@ export async function callMcpTool(toolName: string, args: Record<string, unknown
       'Content-Type': 'application/json',
       'X-Session-Id': _sessionId,
       'X-Csrf-Token': _csrfToken,
-      'X-Domain': import.meta.env.VITE_DR_DOMAIN ?? '',
+      'X-Domain': import.meta.env.VITE_DR_DOMAIN || 'app.datarails.com',
     },
     body: JSON.stringify({ tool: toolName, args }),
   });
