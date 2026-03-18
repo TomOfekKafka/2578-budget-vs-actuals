@@ -9,7 +9,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { callMcpTool, AuthError, setCredentials } from './api';
+import { callMcpTool, AuthError, credentialsReady } from './api';
 import './App.css';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -164,7 +164,13 @@ export default function App() {
   const [selectedPeriod, setSelectedPeriod] = useState<string>('');
 
   useEffect(() => {
+    let cancelled = false;
+
     async function fetchData() {
+      console.log('[BvA] Waiting for credentials via postMessage...');
+      await credentialsReady;
+      if (cancelled) return;
+      console.log('[BvA] Credentials received, fetching data...');
       try {
         const [actuals, budget] = await Promise.all([
           callMcpTool('aggregate_table_data', {
@@ -186,9 +192,11 @@ export default function App() {
             ],
           }),
         ]);
+        if (cancelled) return;
         setActualsData(actuals as ApiRow[]);
         setBudgetData(budget as ApiRow[]);
       } catch (err) {
+        if (cancelled) return;
         console.error('API error, using mock data:', err);
         if (err instanceof AuthError) {
           setAuthError(true);
@@ -198,26 +206,12 @@ export default function App() {
         setActualsData(generateMockRows('Actuals'));
         setBudgetData(generateMockRows('Forecast'));
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
-    function handleMessage(event: MessageEvent) {
-      console.log('[BvA] postMessage received:', event.data, 'origin:', event.origin);
-      const { type, payload } = event.data ?? {};
-      if (type === 'init' && payload) {
-        const { sessionid, csrftoken } = payload;
-        console.log('[BvA] init payload:', { sessionid: !!sessionid, csrftoken: !!csrftoken });
-        if (sessionid && csrftoken) {
-          setCredentials(sessionid, csrftoken);
-          fetchData();
-        }
-      }
-    }
-
-    console.log('[BvA] App mounted, listening for postMessage init event');
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    fetchData();
+    return () => { cancelled = true; };
   }, []);
 
   const allTimestamps = useMemo(() => {

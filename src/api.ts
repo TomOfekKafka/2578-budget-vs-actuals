@@ -10,17 +10,31 @@ export class AuthError extends Error {
 let _sessionId = '';
 let _csrfToken = '';
 
-export function setCredentials(sessionId: string, csrfToken: string) {
-  _sessionId = sessionId;
-  _csrfToken = csrfToken;
+let _resolveCredentials: () => void;
+export const credentialsReady = new Promise<void>((resolve) => {
+  _resolveCredentials = resolve;
+});
+
+function handleMessage(event: MessageEvent) {
+  console.log('[BvA] postMessage received:', event.data, 'origin:', event.origin);
+  const { type, payload } = event.data ?? {};
+  if (type === 'init' && payload) {
+    const { sessionid, csrftoken } = payload;
+    console.log('[BvA] init payload:', { sessionid: !!sessionid, csrftoken: !!csrftoken });
+    if (sessionid && csrftoken) {
+      _sessionId = sessionid;
+      _csrfToken = csrftoken;
+      _resolveCredentials();
+    }
+  }
 }
 
-export function hasCredentials(): boolean {
-  return _sessionId !== '' && _csrfToken !== '';
-}
+// Register immediately at module load — before React mounts
+console.log('[BvA] Registering postMessage listener (module load)');
+window.addEventListener('message', handleMessage);
 
 export async function callMcpTool(toolName: string, args: Record<string, unknown> = {}): Promise<unknown> {
-  if (!hasCredentials()) {
+  if (!_sessionId || !_csrfToken) {
     throw new AuthError('No credentials received yet');
   }
   const response = await fetch(MCP_BASE + '/api/tool', {
